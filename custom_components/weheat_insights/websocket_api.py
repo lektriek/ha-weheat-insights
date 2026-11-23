@@ -6,6 +6,7 @@ from typing import Any
 
 from homeassistant.components import websocket_api
 from homeassistant.config_entries import ConfigEntryState
+from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
@@ -14,7 +15,7 @@ import voluptuous as vol
 from .const import DOMAIN
 from .degree_day_statistics import statistic_id as degree_day_statistic_id
 from .dhw import DEFAULT_DAYS as DHW_DEFAULT_DAYS, async_dhw
-from .discovery import WeheatKey
+from .discovery import WeheatKey, supply_candidates
 from .history import MAX_COUNT, async_history
 from .house import async_supply_curve, curve_payload, heat_loss_payload
 
@@ -38,6 +39,18 @@ def _loaded_entry(hass: HomeAssistant, entry_id: str):
     ):
         return None
     return entry
+
+
+def _supply_entity_id(
+    hass: HomeAssistant, entities: dict[WeheatKey, str]
+) -> str | None:
+    """Return the supply sensor to show: the CH inlet while it has a value."""
+    candidates = supply_candidates(entities)
+    for entity_id in candidates:
+        state = hass.states.get(entity_id)
+        if state is not None and state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+            return entity_id
+    return candidates[0] if candidates else None
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/dashboard_config"})
@@ -67,6 +80,7 @@ def ws_dashboard_config(
                 "model": data.pump.model,
                 "has_dhw": WeheatKey.DHW_TOP_TEMPERATURE in data.entities,
                 "weheat": {key.value: eid for key, eid in data.entities.items()},
+                "supply_entity_id": _supply_entity_id(hass, data.entities),
                 "insights": insights,
                 "degree_days_statistic_id": (
                     degree_day_statistic_id(data.pump.uuid)

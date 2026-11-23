@@ -5,7 +5,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from .conftest import PUMP_UUID, FakeWeheat
+from .conftest import PUMP_UUID, WEHEAT_SENSORS, FakeWeheat, add_weheat_pump
 
 
 def _delta_t_entity_id(hass: HomeAssistant) -> str:
@@ -71,4 +71,38 @@ async def test_no_delta_t_without_both_temperatures(
             "sensor", "weheat_insights", f"{PUMP_UUID}_delta_t"
         )
         is None
+    )
+
+
+async def test_delta_t_prefers_ch_inlet_and_falls_back(
+    hass: HomeAssistant, weheat: FakeWeheat, insights_entry: MockConfigEntry
+) -> None:
+    sensors = dict(WEHEAT_SENSORS)
+    sensors["ch_inlet_temperature"] = ("weheat_ch_inlet", "°C", "temperature")
+    # A second registration of the same pump adds the CH inlet sensor.
+    weheat = add_weheat_pump(hass, sensors=sensors, entry=weheat.entry)
+    celsius = {"unit_of_measurement": "°C"}
+    hass.states.async_set(weheat.entity_ids["water_outlet_temperature"], "40", celsius)
+    hass.states.async_set(weheat.entity_ids["ch_inlet_temperature"], "36", celsius)
+    hass.states.async_set(weheat.entity_ids["water_inlet_temperature"], "31", celsius)
+
+    await hass.config_entries.async_setup(insights_entry.entry_id)
+    await hass.async_block_till_done()
+
+    entity_id = _delta_t_entity_id(hass)
+    state = hass.states.get(entity_id)
+    assert float(state.state) == pytest.approx(5.0)
+    assert (
+        state.attributes["supply_entity_id"]
+        == (weheat.entity_ids["ch_inlet_temperature"])
+    )
+
+    # No clip-on sensor (or it drops out): use the pump outlet.
+    hass.states.async_set(weheat.entity_ids["ch_inlet_temperature"], "unavailable")
+    await hass.async_block_till_done()
+    state = hass.states.get(entity_id)
+    assert float(state.state) == pytest.approx(9.0)
+    assert (
+        state.attributes["supply_entity_id"]
+        == (weheat.entity_ids["water_outlet_temperature"])
     )

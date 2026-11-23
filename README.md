@@ -47,6 +47,11 @@ with one dot per day of heating against the indoor–outdoor difference.
     heat output,
     graphs for the last 24 hours (water and air temperatures apart, power,
     ΔT) and hourly water and air temperatures for the last 7 days.
+    Supply is the water going into the heating system (the CH inlet
+    sensor the installer clips onto the heating side); the heat pump's own
+    outlet is shown next to it. Without a CH inlet sensor, supply is the
+    pump outlet. The ΔT sensor and the heating-curve charts use the same
+    supply temperature.
 - Sensors, all on a separate "Weheat Insights" device per heat pump:
   - ΔT supply/return.
   - COP today, COP this month and SCOP this season: heat pump, total,

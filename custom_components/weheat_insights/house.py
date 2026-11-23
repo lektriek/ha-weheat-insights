@@ -155,6 +155,14 @@ MIN_HEATING_KWH_PER_HOUR = 0.5
 MAX_DHW_KWH_PER_HOUR = 0.05
 
 
+def pick_supply(temps: dict[str, dict[datetime, float]]) -> dict[datetime, float]:
+    """Return the CH inlet series when it has data, else the pump outlet.
+
+    Not mixed per hour: a pump either has the CH inlet sensor or it doesn't.
+    """
+    return temps["supply_ch"] or temps["supply_outlet"]
+
+
 def supply_curve_points(
     outdoor: dict[datetime, float],
     supply: dict[datetime, float],
@@ -200,7 +208,8 @@ async def async_supply_curve(
         hass,
         {
             "outdoor": outdoor_entity_id or "",
-            "supply": entities.get(WeheatKey.SUPPLY_TEMPERATURE, ""),
+            "supply_ch": entities.get(WeheatKey.CH_INLET_TEMPERATURE, ""),
+            "supply_outlet": entities.get(WeheatKey.WATER_OUTLET_TEMPERATURE, ""),
             "return": entities.get(WeheatKey.RETURN_TEMPERATURE, ""),
         },
         start,
@@ -223,7 +232,7 @@ async def async_supply_curve(
     )
     return supply_curve_points(
         temps["outdoor"],
-        temps["supply"],
+        pick_supply(temps),
         temps["return"],
         energy["heating"],
         energy["dhw"],
@@ -313,7 +322,10 @@ class HouseCoordinator(DataUpdateCoordinator[HouseData]):
             {
                 "indoor": data.indoor_entity_id or "",
                 "outdoor": data.outdoor_entity_id or "",
-                "supply": data.entities.get(WeheatKey.SUPPLY_TEMPERATURE, ""),
+                "supply_ch": data.entities.get(WeheatKey.CH_INLET_TEMPERATURE, ""),
+                "supply_outlet": data.entities.get(
+                    WeheatKey.WATER_OUTLET_TEMPERATURE, ""
+                ),
                 "return": data.entities.get(WeheatKey.RETURN_TEMPERATURE, ""),
             },
             start,
@@ -387,7 +399,11 @@ class HouseCoordinator(DataUpdateCoordinator[HouseData]):
         hours = [
             (t, h)
             for t, h in steady_hours(
-                temps["supply"], temps["return"], room, heat["heating"], heat["dhw"]
+                pick_supply(temps),
+                temps["return"],
+                room,
+                heat["heating"],
+                heat["dhw"],
             )
             if t >= since
         ]

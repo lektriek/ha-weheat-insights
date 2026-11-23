@@ -23,6 +23,7 @@ from custom_components.weheat_insights.const import (
 )
 from custom_components.weheat_insights.house import (
     build_day_points,
+    pick_supply,
     steady_hours,
     supply_curve_points,
 )
@@ -186,6 +187,14 @@ def test_build_day_points_with_assumed_indoor() -> None:
     [point] = build_day_points([day], {day: 30.0}, 20.0, {day: 5.0}, {day})
     assert point.indoor_c == 20.0
     assert point.other_heat_source is True
+
+
+def test_pick_supply_prefers_ch_inlet() -> None:
+    t = datetime(2026, 11, 1, tzinfo=dt_util.UTC)
+    assert pick_supply({"supply_ch": {t: 35.0}, "supply_outlet": {t: 38.0}}) == {
+        t: 35.0
+    }
+    assert pick_supply({"supply_ch": {}, "supply_outlet": {t: 38.0}}) == {t: 38.0}
 
 
 def test_supply_curve_points_keep_only_space_heating_hours() -> None:

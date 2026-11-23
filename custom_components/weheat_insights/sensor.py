@@ -42,7 +42,7 @@ from .calculations.operating import GROUPS
 from .calculations.temperature import delta_t
 from .const import DOMAIN
 from .coordinator import InsightsData, PeriodResult, WeheatInsightsCoordinator
-from .discovery import WeheatHeatPump, WeheatKey
+from .discovery import WeheatHeatPump, WeheatKey, supply_candidates
 from .entity import WeheatInsightsEntity
 from .house import HouseCoordinator, HouseData
 from .operating_tracker import OperatingTracker
@@ -58,7 +58,7 @@ async def async_setup_entry(
     """Set up the derived sensors."""
     data = entry.runtime_data
     entities: list[SensorEntity] = []
-    supply = data.entities.get(WeheatKey.SUPPLY_TEMPERATURE)
+    supply = supply_candidates(data.entities)
     return_ = data.entities.get(WeheatKey.RETURN_TEMPERATURE)
     if supply and return_:
         entities.append(DeltaTSensor(data.pump, supply, return_))
@@ -126,18 +126,24 @@ class DeltaTSensor(WeheatInsightsEntity, SensorEntity):
     _attr_suggested_display_precision = 1
 
     def __init__(
-        self, pump: WeheatHeatPump, supply_entity_id: str, return_entity_id: str
+        self, pump: WeheatHeatPump, supply_entity_ids: list[str], return_entity_id: str
     ) -> None:
-        """Initialise the sensor."""
+        """Initialise the sensor.
+
+        ``supply_entity_ids`` is in order of preference; the first one with a
+        value is used, so a CH inlet without a sensor falls back to the outlet.
+        """
         super().__init__(pump, "delta_t")
-        self._supply = supply_entity_id
+        self._supplies = supply_entity_ids
         self._return = return_entity_id
 
     async def async_added_to_hass(self) -> None:
         """Start following the source sensors."""
         self.async_on_remove(
             async_track_state_change_event(
-                self.hass, [self._supply, self._return], self._async_source_changed
+                self.hass,
+                [*self._supplies, self._return],
+                self._async_source_changed,
             )
         )
         self._update()
@@ -149,12 +155,18 @@ class DeltaTSensor(WeheatInsightsEntity, SensorEntity):
 
     @callback
     def _update(self) -> None:
-        value = delta_t(
-            _celsius(self.hass, self._supply), _celsius(self.hass, self._return)
+        supply_id, supply = next(
+            (
+                (entity_id, value)
+                for entity_id in self._supplies
+                if (value := _celsius(self.hass, entity_id)) is not None
+            ),
+            (self._supplies[0], None),
         )
+        value = delta_t(supply, _celsius(self.hass, self._return))
         self._attr_native_value = None if value is None else round(value, 2)
         self._attr_extra_state_attributes = {
-            "supply_entity_id": self._supply,
+            "supply_entity_id": supply_id,
             "return_entity_id": self._return,
         }
 

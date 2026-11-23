@@ -21,7 +21,7 @@ def test_map_entities_matches_on_unique_id_not_entity_id() -> None:
         RegistryEntity("sensor.retour", f"{UUID}_water_inlet_temperature", "weheat"),
     ]
     assert map_entities(UUID, entities) == {
-        WeheatKey.SUPPLY_TEMPERATURE: "sensor.aanvoer",
+        WeheatKey.WATER_OUTLET_TEMPERATURE: "sensor.aanvoer",
         WeheatKey.RETURN_TEMPERATURE: "sensor.retour",
     }
 
@@ -60,7 +60,7 @@ async def test_registry_discovery(hass: HomeAssistant, weheat: FakeWeheat) -> No
     mapping = async_map_heat_pump_entities(hass, pumps[1])
     assert pumps[1].uuid == PUMP_UUID
     assert (
-        mapping[WeheatKey.SUPPLY_TEMPERATURE]
+        mapping[WeheatKey.WATER_OUTLET_TEMPERATURE]
         == (weheat.entity_ids["water_outlet_temperature"])
     )
     # Entities of the other pump never leak into this mapping.

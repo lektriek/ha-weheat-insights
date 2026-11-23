@@ -44,6 +44,8 @@ async def test_dashboard_config(
         == (weheat.entity_ids["water_outlet_temperature"])
     )
     assert pump["weheat"]["cop"] == weheat.entity_ids["cop"]
+    # No CH inlet sensor: the dashboard's supply is the pump outlet.
+    assert pump["supply_entity_id"] == weheat.entity_ids["water_outlet_temperature"]
     assert pump["insights"]["delta_t"].startswith("sensor.")
     assert pump["outdoor_entity_id"] == weheat.entity_ids["outside_temperature"]
     assert pump["indoor_entity_id"] is None

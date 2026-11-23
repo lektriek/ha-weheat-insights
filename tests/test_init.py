@@ -19,7 +19,7 @@ async def test_setup_and_unload(
 
     data = insights_entry.runtime_data
     assert (
-        data.entities[WeheatKey.SUPPLY_TEMPERATURE]
+        data.entities[WeheatKey.WATER_OUTLET_TEMPERATURE]
         == (weheat.entity_ids["water_outlet_temperature"])
     )
     assert data.outdoor_entity_id == weheat.entity_ids["outside_temperature"]
@@ -55,7 +55,7 @@ async def test_reloads_when_weheat_entity_renamed(
 
     assert insights_entry.state is ConfigEntryState.LOADED
     assert (
-        insights_entry.runtime_data.entities[WeheatKey.SUPPLY_TEMPERATURE]
+        insights_entry.runtime_data.entities[WeheatKey.WATER_OUTLET_TEMPERATURE]
         == "sensor.aanvoertemperatuur"
     )
 

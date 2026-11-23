@@ -38,6 +38,8 @@ export interface HeatPumpConfig {
   has_dhw: boolean;
   /** Core Weheat entities, keyed by the core integration's entity key. */
   weheat: Partial<Record<string, string>>;
+  /** Supply temperature: the CH inlet sensor, or the pump outlet without one. */
+  supply_entity_id: string | null;
   /** Our own derived entities, keyed by our entity key. */
   insights: Partial<Record<string, string>>;
   outdoor_entity_id: string | null;

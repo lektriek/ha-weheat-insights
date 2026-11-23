@@ -159,11 +159,17 @@ export function pumpView(pump: HeatPumpConfig, t: Localize, index: number): Love
   const w = pump.weheat;
   const room = roomEntity(pump);
   const outdoor = pump.outdoor_entity_id ?? w.outside_temperature;
+  // Supply is the water going into the heating system (CH inlet sensor). The
+  // pump's own outlet is shown apart: it differs during hot-water runs and
+  // with a buffer or mixing in between.
+  const supply = pump.supply_entity_id ?? w.water_outlet_temperature;
+  const pumpOutlet = supply === w.water_outlet_temperature ? null : w.water_outlet_temperature;
 
   // Water and air on separate charts: on one shared axis (0–70 °C) the
   // room temperature becomes a flat line and supply/return hide each other.
   const waterTemperatures = present([
-    entity(w.water_outlet_temperature, t("supply")),
+    entity(supply, t("supply")),
+    entity(pumpOutlet, t("pump_outlet")),
     entity(w.water_inlet_temperature, t("return")),
     entity(w.thermostat_water_setpoint, t("supply_setpoint")),
   ]);
@@ -186,9 +192,10 @@ export function pumpView(pump: HeatPumpConfig, t: Localize, index: number): Love
     // sensor stays unavailable.
     whenAvailable(tile(w.thermostat_room_temperature_setpoint, t("room_setpoint"))),
     tile(outdoor, t("outdoor")),
-    tile(w.water_outlet_temperature, t("supply")),
+    tile(supply, t("supply")),
     tile(w.thermostat_water_setpoint, t("supply_setpoint")),
     tile(w.water_inlet_temperature, t("return")),
+    tile(pumpOutlet, t("pump_outlet")),
     tile(pump.insights.delta_t, t("delta_t_short")),
     tile(w.power_input, t("power_input_short")),
     tile(w.power_output, t("power_output_short")),

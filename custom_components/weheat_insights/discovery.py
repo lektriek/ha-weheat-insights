@@ -20,7 +20,7 @@ from .const import WEHEAT_DOMAIN
 class WeheatKey(StrEnum):
     """Entity description keys used by the core Weheat integration."""
 
-    SUPPLY_TEMPERATURE = "water_outlet_temperature"
+    WATER_OUTLET_TEMPERATURE = "water_outlet_temperature"
     RETURN_TEMPERATURE = "water_inlet_temperature"
     CH_INLET_TEMPERATURE = "ch_inlet_temperature"
     OUTSIDE_TEMPERATURE = "outside_temperature"
@@ -50,6 +50,17 @@ class WeheatKey(StrEnum):
 
 
 _KEYS = {key.value: key for key in WeheatKey}
+
+# "Supply" is the water going into the heating system: the CH inlet ("house
+# in") sensor the installer clips onto the heating side, after the pump or
+# 3-way valve. It sees what the radiators get, also with a buffer or mixing in
+# between. Pumps without that sensor fall back to the heat pump's own outlet.
+SUPPLY_KEYS = (WeheatKey.CH_INLET_TEMPERATURE, WeheatKey.WATER_OUTLET_TEMPERATURE)
+
+
+def supply_candidates(entities: dict[WeheatKey, str]) -> list[str]:
+    """Supply entities in order of preference: CH inlet, then pump outlet."""
+    return [entities[key] for key in SUPPLY_KEYS if key in entities]
 
 
 @dataclass(frozen=True, slots=True)
