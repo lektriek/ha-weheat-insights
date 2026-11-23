@@ -86,11 +86,12 @@ function section(
 function aboutSection(
   t: Localize,
   key: "definitions" | "house_definitions" | "curve_definitions" | "op_definitions" | "dhw_definitions",
+  extra = "",
 ) {
   return section(
     [heading(t("title"), "mdi:information-outline"), {
       type: "markdown",
-      content: `${t(key)}\n\n_${t("disclaimer")}_`,
+      content: `${t(key)}${extra}\n\n_${t("disclaimer")}_`,
       // A card fills one column of a section by default, also in a wide one.
       grid_options: { columns: "full" },
     }],
@@ -490,6 +491,63 @@ export function operationView(pump: HeatPumpConfig, t: Localize, index: number):
   };
 }
 
+/**
+ * The Weheat Intelligence hot-water plan from the weheat_control extension.
+ * Without it there are no control entities and no sections; outside
+ * Intelligence mode its plan sensor is unavailable and the sections hide.
+ */
+function planSections(pump: HeatPumpConfig, t: Localize): LovelaceSectionConfig[] {
+  const c = pump.control ?? {};
+  const plan = c.dhw_plan;
+  if (!plan) return [];
+  const visibility = [{ condition: "state", entity: plan, state_not: "unavailable" }];
+  const days = present([
+    entity(c.dhw_plan_yesterday, t("dhw_plan_yesterday")),
+    entity(c.dhw_plan_today, t("dhw_plan_today")),
+    entity(c.dhw_plan_tomorrow, t("dhw_plan_tomorrow")),
+  ]);
+  return present([
+    section(
+      [
+        heading(t("dhw_plan_vs_actual"), "mdi:calendar-check"),
+        historyGraph(
+          t("last_48h"),
+          present([
+            // Our reduced plan sensor: "standby" in the raw plan only means no hot water.
+            entity(pump.insights.dhw_plan_activity ?? plan, t("dhw_plan")),
+            entity(pump.insights.dhw_activity, t("dhw_actual")),
+          ]),
+          48,
+        ),
+      ],
+      2,
+    ),
+    section(
+      [
+        heading(t("dhw_plan_title"), "mdi:calendar-clock"),
+        c.dhw_plan_next ? { ...tile(c.dhw_plan_next, t("dhw_plan_next"))!, grid_options: { columns: "full" } } : null,
+        days.length ? { type: "entities", entities: days, grid_options: { columns: "full" } } : null,
+      ],
+      2,
+    ),
+    section(
+      [
+        heading(t("dhw_plan_target_title"), "mdi:thermometer-water"),
+        historyGraph(
+          t("last_48h"),
+          present([
+            entity(pump.insights.dhw_plan_target, t("dhw_plan_target")),
+            entity(c.dhw_target_readback, t("dhw_pump_target")),
+            entity(pump.weheat.dhw_bottom_temperature, t("dhw_bottom")),
+          ]),
+          48,
+        ),
+      ],
+      2,
+    ),
+  ]).map((s) => ({ ...s, visibility }));
+}
+
 export function hotWaterView(pump: HeatPumpConfig, t: Localize, index: number): LovelaceViewConfig | null {
   const w = pump.weheat;
   if (!pump.has_dhw) return null;
@@ -550,13 +608,16 @@ export function hotWaterView(pump: HeatPumpConfig, t: Localize, index: number): 
     [heading(t("dhw_habits"), "mdi:clock-outline"), dhw("start_hours"), dhw("standing_loss")],
     2,
   );
+  const plan = planSections(pump, t);
+  // The plan's definition continues the list of hot-water definitions.
+  const about = aboutSection(t, "dhw_definitions", plan.length ? `\n${t("dhw_plan_definitions")}` : "");
   return {
     title: `${pump.name} · ${t("hot_water_tab")}`,
     path: index === 0 ? "hot-water" : `hot-water-${index + 1}`,
     icon: "mdi:water-boiler",
     type: "sections",
     max_columns: 4,
-    sections: present([tank, perDay, efficiency, habits, aboutSection(t, "dhw_definitions")]),
+    sections: present([tank, ...plan, perDay, efficiency, habits, about]),
   };
 }
 

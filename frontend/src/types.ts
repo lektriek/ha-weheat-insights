@@ -11,6 +11,8 @@ export type LovelaceCardConfig = { type: string; [key: string]: unknown };
 export interface LovelaceSectionConfig {
   type: "grid";
   column_span?: number;
+  /** Show the section only while these conditions hold. */
+  visibility?: Record<string, unknown>[];
   cards: LovelaceCardConfig[];
 }
 
@@ -42,6 +44,8 @@ export interface HeatPumpConfig {
   supply_entity_id: string | null;
   /** Our own derived entities, keyed by our entity key. */
   insights: Partial<Record<string, string>>;
+  /** weheat_control (Weheat Intelligence plan) entities; empty without it. */
+  control?: Partial<Record<string, string>>;
   outdoor_entity_id: string | null;
   indoor_entity_id: string | null;
   /** External long-term statistic with degree days, if an outdoor sensor is set. */
