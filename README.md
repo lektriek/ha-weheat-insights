@@ -41,6 +41,10 @@ with one dot per day of heating against the indoor–outdoor difference.
     electricity per day, COP against tank temperature and against outdoor
     temperature, at what time of day the tank is heated, and the
     tank's standing loss per week.
+    With [Weheat Control](#weheat-intelligence-plan-optional) also the
+    Weheat Intelligence plan: planned against actual hot-water runs, the
+    next planned heating, the plan of yesterday, today and tomorrow, and the
+    plan's target temperature against the heat pump's.
   - **Live**: operating state, COP gauge (while running), room temperature
     (and the thermostat's room target, when it reports one), outdoor, supply
     and return temperatures, the supply target, ΔT, electrical power and
@@ -108,6 +112,8 @@ the tank temperature, with legionella-prevention days apart.
 
 - Home Assistant 2026.10 or newer.
 - The core **Weheat** integration, set up and working.
+- Optional: [Weheat Control](https://github.com/lektriek/ha-weheat-control)
+  for the Weheat Intelligence hot-water plan (see below).
 
 ## Installation
 
@@ -345,6 +351,33 @@ before.
   more bars that go up and down are hard to read.
 - Tank temperatures only have history since the core Weheat integration was
   added to Home Assistant.
+
+### Weheat Intelligence plan (optional)
+
+The core Weheat integration does not expose the hot-water plan that Weheat
+Intelligence makes. The fork of Weheat Control at
+[lektriek/ha-weheat-control](https://github.com/lektriek/ha-weheat-control)
+(an unofficial integration, not affiliated with Weheat) supplies that plan
+from the Weheat cloud, and Weheat Insights shows it. When it is installed and
+hot water runs in Intelligence mode, the hot-water tab gets three extra sections:
+
+- **Planned vs. actual**: a 48-hour timeline of the plan next to what the
+  heat pump did. Both only tell *hot water*, *legionella prevention* and
+  *no hot water* apart: outside a planned run the heat pump may well be
+  heating the house, which is not relevant here. Weheat Insights adds two
+  sensors for this, *Hot-water activity* (from the heat pump state) and
+  *Hot-water plan activity* (from the plan).
+- **Weheat Intelligence plan**: the next planned heating and the planned
+  moments of yesterday, today and tomorrow.
+- **Target temperature: plan vs. heat pump**: the target the plan reports
+  for today (sensor *Hot-water plan target temperature*), the hot-water
+  target set in the heat pump and the temperature at the bottom of the tank.
+  Whether the heat pump uses the plan's target is not established.
+
+Without Weheat Control these sections do not appear, and outside
+Intelligence mode they hide. The plan is linked only when there is exactly
+one Weheat Control installation and one Weheat heat pump: Home Assistant
+cannot tell which installation belongs to which heat pump.
 
 ### Long-term statistics
 
