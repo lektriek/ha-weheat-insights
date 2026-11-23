@@ -206,6 +206,25 @@
       },
       "legionella_time_total": {
         "name": "Legionella prevention time (total)"
+      },
+      "dhw_activity": {
+        "name": "Hot-water activity",
+        "state": {
+          "none": "No hot water",
+          "dhw": "Hot water",
+          "legionella": "Legionella prevention"
+        }
+      },
+      "dhw_plan_target": {
+        "name": "Hot-water plan target temperature"
+      },
+      "dhw_plan_activity": {
+        "name": "Hot-water plan activity",
+        "state": {
+          "none": "No hot water",
+          "dhw": "Hot water",
+          "legionella": "Legionella prevention"
+        }
       }
     }
   },

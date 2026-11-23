@@ -15,7 +15,7 @@ import voluptuous as vol
 from .const import DOMAIN
 from .degree_day_statistics import statistic_id as degree_day_statistic_id
 from .dhw import DEFAULT_DAYS as DHW_DEFAULT_DAYS, async_dhw
-from .discovery import WeheatKey, supply_candidates
+from .discovery import WeheatKey, async_map_control_entities, supply_candidates
 from .history import MAX_COUNT, async_history
 from .house import async_supply_curve, curve_payload, heat_loss_payload
 
@@ -62,6 +62,12 @@ def ws_dashboard_config(
 ) -> None:
     """Return the resolved entities of every loaded heat pump."""
     registry = er.async_get(hass)
+    # Resolved on every request, so the plan shows up or disappears with the
+    # weheat_control extension without a reload.
+    control = {
+        key.value: entity_id
+        for key, entity_id in async_map_control_entities(hass).items()
+    }
     heat_pumps: list[dict[str, Any]] = []
     for entry in hass.config_entries.async_entries(DOMAIN):
         if entry.state is not ConfigEntryState.LOADED:
@@ -82,6 +88,7 @@ def ws_dashboard_config(
                 "weheat": {key.value: eid for key, eid in data.entities.items()},
                 "supply_entity_id": _supply_entity_id(hass, data.entities),
                 "insights": insights,
+                "control": control,
                 "degree_days_statistic_id": (
                     degree_day_statistic_id(data.pump.uuid)
                     if data.outdoor_entity_id

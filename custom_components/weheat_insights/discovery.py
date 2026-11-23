@@ -14,7 +14,7 @@ from enum import StrEnum
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from .const import WEHEAT_DOMAIN
+from .const import CONTROL_DOMAIN, WEHEAT_DOMAIN
 
 
 class WeheatKey(StrEnum):
@@ -153,4 +153,65 @@ def async_map_heat_pump_entities(
                 registry, pump.device_id, include_disabled_entities=True
             )
         ),
+    )
+
+
+class ControlKey(StrEnum):
+    """Entity keys of the weheat_control extension (Weheat Intelligence plan)."""
+
+    DHW_PLAN = "dhw_plan"
+    DHW_PLAN_YESTERDAY = "dhw_plan_yesterday"
+    DHW_PLAN_TODAY = "dhw_plan_today"
+    DHW_PLAN_TOMORROW = "dhw_plan_tomorrow"
+    DHW_PLAN_NEXT = "dhw_plan_next"
+    DHW_TARGET_READBACK = "dhw_target_readback"
+
+
+def map_control_entities(
+    entities: Iterable[RegistryEntity], pump_count: int
+) -> dict[ControlKey, str]:
+    """Map weheat_control keys to entity_ids, if that maps to one heat pump.
+
+    weheat_control keys its entities by Weheat installation id, which Home
+    Assistant cannot relate to the core integration's heat pump uuid. An
+    installation has one heat pump, so we only link when there is exactly
+    one installation and one heat pump; otherwise nothing.
+    """
+    if pump_count != 1:
+        return {}
+    by_installation: dict[str, dict[ControlKey, str]] = {}
+    for entity in entities:
+        if entity.platform != CONTROL_DOMAIN:
+            continue
+        # The readback sensor exists for every installation, so every
+        # installation shows up here even outside Intelligence mode.
+        key = next(
+            (k for k in ControlKey if entity.unique_id.endswith(f"_{k.value}")), None
+        )
+        if key is None:
+            continue
+        installation = entity.unique_id.removesuffix(f"_{key.value}")
+        found = by_installation.setdefault(installation, {})
+        if not entity.disabled:
+            found[key] = entity.entity_id
+    if len(by_installation) != 1:
+        return {}
+    return next(iter(by_installation.values()))
+
+
+def async_map_control_entities(hass: HomeAssistant) -> dict[ControlKey, str]:
+    """Map the weheat_control entities, if installed and unambiguous."""
+    registry = er.async_get(hass)
+    return map_control_entities(
+        (
+            RegistryEntity(
+                entity_id=entry.entity_id,
+                unique_id=entry.unique_id,
+                platform=entry.platform,
+                disabled=entry.disabled,
+            )
+            for entry in registry.entities.values()
+            if entry.platform == CONTROL_DOMAIN
+        ),
+        len(async_get_heat_pumps(hass)),
     )

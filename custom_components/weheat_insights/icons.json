@@ -135,6 +135,23 @@
       },
       "legionella_time_total": {
         "default": "mdi:bacteria-outline"
+      },
+      "dhw_activity": {
+        "default": "mdi:water-boiler-off",
+        "state": {
+          "dhw": "mdi:water-boiler",
+          "legionella": "mdi:bacteria-outline"
+        }
+      },
+      "dhw_plan_target": {
+        "default": "mdi:thermometer-water"
+      },
+      "dhw_plan_activity": {
+        "default": "mdi:calendar-clock",
+        "state": {
+          "dhw": "mdi:calendar-check",
+          "legionella": "mdi:bacteria-outline"
+        }
       }
     }
   }

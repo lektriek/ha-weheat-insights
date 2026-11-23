@@ -42,7 +42,13 @@ from .calculations.operating import GROUPS
 from .calculations.temperature import delta_t
 from .const import DOMAIN
 from .coordinator import InsightsData, PeriodResult, WeheatInsightsCoordinator
-from .discovery import WeheatHeatPump, WeheatKey, supply_candidates
+from .discovery import (
+    ControlKey,
+    WeheatHeatPump,
+    WeheatKey,
+    async_map_control_entities,
+    supply_candidates,
+)
 from .entity import WeheatInsightsEntity
 from .house import HouseCoordinator, HouseData
 from .operating_tracker import OperatingTracker
@@ -99,6 +105,25 @@ async def async_setup_entry(
             entities.append(
                 OperatingCounterSensor(data.pump, data.operating, group, "time")
             )
+    has_tank = WeheatKey.DHW_TOP_TEMPERATURE in data.entities
+    if has_tank and (state := data.entities.get(WeheatKey.STATE)):
+        entities.append(
+            DhwActivitySensor(data.pump, "dhw_activity", state, DHW_ACTIVITY)
+        )
+    plan = async_map_control_entities(hass).get(ControlKey.DHW_PLAN)
+    if has_tank and plan:
+        entities.append(
+            DhwActivitySensor(data.pump, "dhw_plan_activity", plan, DHW_PLAN_ACTIVITY)
+        )
+        entities.append(PlanTargetSensor(data.pump, plan))
+    else:
+        # weheat_control was removed: drop the orphans instead of leaving
+        # them unavailable.
+        for key in ("dhw_plan_activity", "dhw_plan_target"):
+            if entity_id := registry.async_get_entity_id(
+                "sensor", DOMAIN, f"{data.pump.uuid}_{key}"
+            ):
+                registry.async_remove(entity_id)
     async_add_entities(entities)
 
 
@@ -169,6 +194,108 @@ class DeltaTSensor(WeheatInsightsEntity, SensorEntity):
             "supply_entity_id": supply_id,
             "return_entity_id": self._return,
         }
+
+
+# Heat pump states that heat the tank; everything else is "no hot water".
+DHW_ACTIVITY = {"dhw": "dhw", "legionella_prevention": "legionella"}
+# weheat_control plan states; "standby" means no hot water, the pump may well
+# be heating the house then.
+DHW_PLAN_ACTIVITY = {"heating": "dhw", "legionella": "legionella"}
+
+
+class DhwActivitySensor(WeheatInsightsEntity, SensorEntity):
+    """A state reduced to hot water: none, hot water or legionella.
+
+    On the hot-water tab heating, defrost and standby are all the same thing:
+    the tank is not being heated. The heat pump state (actual) and the
+    Intelligence plan get the same three states, so they read side by side.
+    """
+
+    _attr_device_class = SensorDeviceClass.ENUM
+
+    def __init__(
+        self,
+        pump: WeheatHeatPump,
+        key: str,
+        source_entity_id: str,
+        mapping: dict[str, str],
+    ) -> None:
+        """Initialise the sensor."""
+        super().__init__(pump, key)
+        self._attr_options = ["none", "dhw", "legionella"]
+        self._source = source_entity_id
+        self._mapping = mapping
+
+    async def async_added_to_hass(self) -> None:
+        """Start following the source state."""
+        self.async_on_remove(
+            async_track_state_change_event(
+                self.hass, [self._source], self._async_source_changed
+            )
+        )
+        self._update()
+
+    @callback
+    def _async_source_changed(self, event: Event[EventStateChangedData]) -> None:
+        self._update()
+        self.async_write_ha_state()
+
+    @callback
+    def _update(self) -> None:
+        state = self.hass.states.get(self._source)
+        # The plan is unavailable outside Intelligence mode, and so is this.
+        self._attr_available = state is not None and state.state != STATE_UNAVAILABLE
+        if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            self._attr_native_value = None
+        else:
+            self._attr_native_value = self._mapping.get(state.state, "none")
+
+
+class PlanTargetSensor(WeheatInsightsEntity, SensorEntity):
+    """Today's target temperature of the Weheat Intelligence hot-water plan.
+
+    weheat_control reports it only as an attribute of its plan sensor; as a
+    sensor of its own it gets history and statistics for a graph.
+    """
+
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 1
+
+    def __init__(self, pump: WeheatHeatPump, plan_entity_id: str) -> None:
+        """Initialise the sensor."""
+        super().__init__(pump, "dhw_plan_target")
+        self._source = plan_entity_id
+
+    async def async_added_to_hass(self) -> None:
+        """Start following the plan sensor."""
+        self.async_on_remove(
+            async_track_state_change_event(
+                self.hass, [self._source], self._async_source_changed
+            )
+        )
+        self._update()
+
+    @callback
+    def _async_source_changed(self, event: Event[EventStateChangedData]) -> None:
+        self._update()
+        self.async_write_ha_state()
+
+    @callback
+    def _update(self) -> None:
+        state = self.hass.states.get(self._source)
+        value = None
+        if state is not None and state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            value = state.attributes.get("reported_target_temperature")
+        # Outside Intelligence mode the plan is unavailable, and so is this.
+        self._attr_available = state is not None and state.state != STATE_UNAVAILABLE
+        self._attr_native_value = (
+            float(value)
+            if isinstance(value, (int, float)) and not isinstance(value, bool)
+            else None
+        )
+        self._attr_extra_state_attributes = {"plan_entity_id": self._source}
 
 
 UNIT_DEGREE_DAYS = "K·d"

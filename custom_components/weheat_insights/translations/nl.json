@@ -206,6 +206,25 @@
       },
       "legionella_time_total": {
         "name": "Legionellapreventie: tijd (totaal)"
+      },
+      "dhw_activity": {
+        "name": "Warmwateractiviteit",
+        "state": {
+          "none": "Geen warm water",
+          "dhw": "Warm water",
+          "legionella": "Legionellapreventie"
+        }
+      },
+      "dhw_plan_target": {
+        "name": "Doeltemperatuur warmwaterplan"
+      },
+      "dhw_plan_activity": {
+        "name": "Warmwateractiviteit volgens plan",
+        "state": {
+          "none": "Geen warm water",
+          "dhw": "Warm water",
+          "legionella": "Legionellapreventie"
+        }
       }
     }
   },

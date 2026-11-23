@@ -6,6 +6,8 @@ from typing import Final
 DOMAIN: Final = "weheat_insights"
 NAME: Final = "Weheat Insights"
 WEHEAT_DOMAIN: Final = "weheat"
+# Unofficial extension that exposes the Weheat Intelligence hot-water plan.
+CONTROL_DOMAIN: Final = "weheat_control"
 
 LOGGER: Logger = getLogger(__package__)
 

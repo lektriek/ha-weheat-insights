@@ -20,11 +20,13 @@ from .const import (
     CONF_HEAT_PUMP_ID,
     CONF_INDOOR_ENTITY,
     CONF_OUTDOOR_ENTITY,
+    CONTROL_DOMAIN,
     DOMAIN,
     WEHEAT_DOMAIN,
 )
 from .coordinator import WeheatInsightsCoordinator
 from .discovery import (
+    ControlKey,
     WeheatHeatPump,
     WeheatKey,
     async_get_heat_pump,
@@ -136,10 +138,15 @@ def _async_watch_weheat_entities(
             # Removed entries are gone from the registry; check our own mapping.
             return entity_id in entry.runtime_data.entities.values()
         reg_entry = registry.async_get(entity_id)
-        return (
-            reg_entry is not None
-            and reg_entry.platform == WEHEAT_DOMAIN
-            and reg_entry.unique_id.startswith(prefix)
+        if reg_entry is None:
+            return False
+        if reg_entry.platform == CONTROL_DOMAIN:
+            # The weheat_control plan appeared: add the plan target sensor.
+            return event_data["action"] == "create" and reg_entry.unique_id.endswith(
+                f"_{ControlKey.DHW_PLAN.value}"
+            )
+        return reg_entry.platform == WEHEAT_DOMAIN and reg_entry.unique_id.startswith(
+            prefix
         )
 
     @callback
