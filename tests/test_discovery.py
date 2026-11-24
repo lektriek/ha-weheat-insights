@@ -1,6 +1,8 @@
 """Tests for entity discovery."""
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.weheat_insights.discovery import (
     RegistryEntity,
@@ -65,3 +67,24 @@ async def test_registry_discovery(hass: HomeAssistant, weheat: FakeWeheat) -> No
     )
     # Entities of the other pump never leak into this mapping.
     assert second.entity_ids["cop"] not in mapping.values()
+
+
+async def test_discovery_tolerates_devices_with_odd_identifiers(
+    hass: HomeAssistant, weheat: FakeWeheat
+) -> None:
+    # Other integrations may register identifiers that are not (domain, id)
+    # pairs; discovery walks every device and must not crash on them (#1).
+    other = MockConfigEntry(domain="other_integration")
+    other.add_to_hass(hass)
+    registry = dr.async_get(hass)
+    registry.async_get_or_create(
+        config_entry_id=other.entry_id,
+        identifiers={("other_integration", "device", "channel")},
+    )
+    registry.async_get_or_create(
+        config_entry_id=other.entry_id,
+        identifiers={("other_integration",)},
+    )
+
+    pumps = async_get_heat_pumps(hass)
+    assert [pump.uuid for pump in pumps] == [PUMP_UUID]
