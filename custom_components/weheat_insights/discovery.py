@@ -103,10 +103,15 @@ def map_entities(uuid: str, entities: Iterable[RegistryEntity]) -> dict[WeheatKe
 
 
 def heat_pump_uuid(device: dr.DeviceEntry) -> str | None:
-    """Return the Weheat heat pump uuid of a device, if it is a Weheat pump."""
-    for domain, identifier in device.identifiers:
-        if domain == WEHEAT_DOMAIN:
-            return identifier
+    """Return the Weheat heat pump uuid of a device, if it is a Weheat pump.
+
+    Every device in the registry passes through here, not only Weheat ones.
+    Home Assistant does not enforce that identifiers are (domain, id) pairs,
+    and some integrations register longer tuples, so never unpack them.
+    """
+    for identifier in device.identifiers:
+        if len(identifier) >= 2 and identifier[0] == WEHEAT_DOMAIN:
+            return identifier[1]
     return None
 
 
