@@ -82,6 +82,9 @@ def notes(version: str) -> None:
     body = section(text, version)
     if not body:
         fail(f"CHANGELOG.md has no notes for {version}")
+    # GitHub renders every newline in release notes as a line break, so join
+    # the wrapped continuation lines of list items and paragraphs.
+    body = re.sub(r"(?<=\S)\n(?!\n|#|- |\s*$)\s*", " ", body)
     link = re.search(rf"^\[{re.escape(version)}\]: (\S+)$", text, re.MULTILINE)
     print(body + (f"\n\n**Full changes**: {link.group(1)}" if link else ""))
 
