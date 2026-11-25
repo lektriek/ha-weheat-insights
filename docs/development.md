@@ -53,20 +53,24 @@ frontend change, rebuild the bundle and hard-refresh the browser.
 
 ## Releasing
 
-The Home Assistant Marketplace shows the name of the newest GitHub release as
-the version (and a commit hash when there are no releases). To release:
+Versions follow [semantic versioning](https://semver.org/). HACS and the Home
+Assistant Marketplace offer a new version only when it is published as a GitHub
+release, and show the release notes when offering the update.
 
-1. Bump the version in `custom_components/weheat_insights/manifest.json`,
-   `frontend/package.json` (and its lock file) and `pyproject.toml`, and
-   rebuild the frontend bundle.
-2. Commit and push.
-3. Tag and push the tag:
+1. While working, add each user-visible change under **Unreleased** in
+   [CHANGELOG.md](../CHANGELOG.md), as *Added*, *Changed*, *Fixed* or *Removed*.
+2. To release, run `scripts/release.py 1.2.0` on an up-to-date `main`. It sets
+   the version in `manifest.json`, `pyproject.toml` and `frontend/package.json`
+   with its lock file, dates the changelog section, commits `Release 1.2.0` and
+   tags `v1.2.0`. It pushes nothing.
+3. Push the commit and tag with the command it prints. The **Release**
+   workflow checks that the tag matches the manifest and publishes the GitHub
+   release with that version's changelog section as notes.
 
-   ```bash
-   git tag v0.6.4
-   git push origin v0.6.4
-   ```
+A version with a suffix, such as `1.3.0-beta.1`, becomes a pre-release; HACS
+only offers it to users who switched on *Show beta versions*. Don't create
+releases in the GitHub web interface: the workflow then fails because the
+release already exists, and the notes don't come from the changelog.
 
-The `Release` workflow checks that the tag matches the manifest version and
-creates the GitHub release with notes generated from the commits. A tag with a
-suffix, such as `v0.7.0-beta.1`, becomes a pre-release.
+[ha-weheat-control](https://github.com/lektriek/ha-weheat-control) uses the
+same process, script and workflow.

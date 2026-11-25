@@ -1,8 +1,9 @@
 name: Release
 
-# Push a tag like v0.6.4 (matching manifest.json) to publish a GitHub
-# release. The Home Assistant Marketplace shows release names as versions;
-# without releases it shows commit hashes.
+# Push a tag like v1.2.0 (made by scripts/release.py) to publish a GitHub
+# release. HACS and the Home Assistant Marketplace show release names as
+# versions and the release body as its notes; without releases they show
+# commit hashes. Kept identical in ha-weheat-control and ha-weheat-insights.
 on:
   push:
     tags:
@@ -19,22 +20,27 @@ jobs:
 
       - name: Tag must match the manifest version
         run: |
-          version=$(python3 -c "import json; print(json.load(open('custom_components/weheat_insights/manifest.json'))['version'])")
+          version=$(python3 -c "import glob, json; print(json.load(open(glob.glob('custom_components/*/manifest.json')[0]))['version'])")
           if [ "${GITHUB_REF_NAME#v}" != "$version" ]; then
             echo "::error::Tag $GITHUB_REF_NAME does not match manifest version $version"
             exit 1
           fi
 
+      - name: Take the release notes from CHANGELOG.md
+        run: |
+          python3 scripts/release.py --notes "${GITHUB_REF_NAME#v}" > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # A tag with a suffix (v0.7.0-beta.1) becomes a pre-release, which
-          # the Marketplace only offers when "Pre-release" is switched on.
+          # A tag with a suffix (v1.3.0-beta.1) becomes a pre-release, which
+          # HACS only offers when "Show beta versions" is switched on.
           prerelease=""
           case "$GITHUB_REF_NAME" in *-*) prerelease="--prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
-            --generate-notes \
+            --notes-file "$RUNNER_TEMP/notes.md" \
             --verify-tag \
             $prerelease

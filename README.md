@@ -416,7 +416,8 @@ talk to the Weheat cloud and cannot control your heat pump.
 
 ## Development
 
-See [docs/development.md](docs/development.md).
+See [docs/development.md](docs/development.md). Changes per version are
+listed in the [changelog](CHANGELOG.md).
 
 ## Made by Lektriek
 
